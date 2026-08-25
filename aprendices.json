@@ -1,0 +1,26 @@
+[
+  {
+    "di": 12,
+    "nombre": "ana",
+    "correo": "ana@gmail.com",
+    "imagen": "url"
+  },
+  {
+    "di": 2,
+    "nombre": "sofi",
+    "correo": "sofi@gmail.com",
+    "imagen": "url"
+  },
+  {
+    "di": 12,
+    "nombre": "ana",
+    "correo": "ana@gmail.com",
+    "imagen": "url"
+  },
+  {
+    "di": 12,
+    "nombre": "ana",
+    "correo": "ana@gmail.com",
+    "imagen": "url"
+  }
+]
