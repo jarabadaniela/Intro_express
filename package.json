@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "name": "intro-express",
   "version": "1.0.0",
   "description": "",
@@ -6,11 +7,23 @@
   "main": "index.js",
   "scripts": {
     "dev": "node --watch app.js",
+=======
+  "name": "intro_3407180",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch app.js", 
+>>>>>>> 678fdd58f28b17623f09d46b5b1c1d97f4faf901
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+<<<<<<< HEAD
+=======
+  "type": "module",
+>>>>>>> 678fdd58f28b17623f09d46b5b1c1d97f4faf901
   "dependencies": {
     "dotenv": "^17.4.2",
     "express": "^5.2.1"
