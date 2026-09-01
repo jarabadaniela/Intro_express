@@ -1,24 +1,25 @@
-<<<<<<< HEAD
-const express = require("express")
+const express = require("express") 
 require("dotenv").config()
-const app = express()
-  //configuracion de body-parse
-app.use(express.json())
+//configuracion
+const app = express();
 const sistemaArchivos = require("fs")
 const ruta = require("path")
-const { json } = require("stream/consumers")
-const puerto = process.env.PORT || 3000;
-  //ruta de mi archivo json
-  const rutaArchivojson = ruta.join(__dirname, "aprendices.json")
+const {json} = require("stream/consumers")
+app.use (express.json())
+
+const puerto = process.env.PORT || 3050;
+
+//ruta de mi archivo json
+const rutaArchivosjson = ruta.join(__dirname, "aprendices.json")
 
 app.get("/", (req, res) => {
     res.send("<h1>Api Aprendices</h1>")
 })
 
-//listar aprendices
+// listar aprendices
 
-app.get("/api/aprendices", (req, res)=> {
-    sistemaArchivos.readFile(rutaArchivojson, "utf-8", (error, datos) => 
+app.get("/api/aprendices",(req, res) => { 
+    sistemaArchivos.readFile(rutaArchivosjson, "utf-8", (error, datos) => 
     {
         if (error) {
             return res.status(500).json({ Error: "Error conexion bd."})
@@ -28,81 +29,50 @@ app.get("/api/aprendices", (req, res)=> {
     })
 })
 
+
 //endpoint para adicionar
 app.post("/api/aprendices", (req, res) => {
-    //capturar los datos enviados
-    const datosAprendiz = req.body
-    sistemaArchivos.readFile(rutaArchivojson, "utf-8", (error, datos) => 
+    //capturar los datos enviados 
+    const datosAprendiz = req.body 
+    sistemaArchivos.readFile(rutaArchivosjson, "utf-8", (error, datos) => 
     {
         if (error) {
-            return res.status(500).json({ Error: "Error conexion bd."})
-        }
+            return res.status(500).json({Error: "Error conexion bd."})
+        } 
         const listaAprendices = JSON.parse(datos)
-        //agregar a la lista javascrpit     
-        listaAprendices.push(datosAprendiz)
+        //agregar a la lista javaScript
+    listaAprendices.push(datosAprendiz)
         //escritura de archivo
-        sistemaArchivos.writeFile(rutaArchivojson, JSON.stringify(listaAprendices, null, 2), (error) => {
+        sistemaArchivos.writeFile(rutaArchivosjson, JSON.stringify(listaAprendices, null, 2), (error) => {
             if (error) {
-                return res.json({ Error: "No se puede registrar." })
+                return res.json({Error: "No se puede registrar."})
             }
             res.status(201).json(datosAprendiz)
         })
-        res.json(datosAprendiz)
+        res.json(listaAprendices)
     })
+    
 })
 
-//endpoint para editar
-app.put("api/aprendices/:di", (req, res) =>{
+//endpoint para editar 
+app.put("api/aprendices/:di", (req, res) => {
     const diAprendiz = req.params
-    const datosAprendiz= req.body
+    const datosAprendiz = req.body
     sistemaArchivos.readFile(rutaArchivojson, "utf-8", (error, datos) => {
         if (error) {
-            return res.status(500).json({ Error: "Error de conexion bd."})
+            return res.status(500).json({Error: "Error"})
         }
-        const listaAprendices = JSON.parse(datos)
-          //Actualizar aprendiz
-        listaAprendices = listaAprendices.map(aprendiz =>{
-            return aprendiz.di === diAprendiz ? {...aprendiz, ...datosAprendiz} :
-            aprendiz
-        })
     })
 })
 
+//Actualizar aprendiz 
+listaAprendices = listaAprendices.map(aprendiz => {
+    return aprendiz.di === diAprendiz ? {...aprendiz, ...datosAprendiz} :
+    aprendiz 
 
-
-
-
-app.listen(puerto, () => {
-    console.log(`SERVIDOR http://localhost:${puerto}`)
 })
 
-=======
-import express from "express";
-//import {configDotenv} from "dotenv"
-//configDotenv();
-import "dotenv/config";
 
-/* const express = require("express") */
-const app = express();
-const puerto = process.env.PORT || 3500;
-
-app.get("/",(req,res)=>{
-    res.send("Hola ficha 3407180 Daniela");     
-});
-
-app.get("/misaludo:ficha",(req,res)=>{
-    const ficha= req.params.ficha;
-    res.send(`<h1>Saludo</h1><p>Hola soy Nani de la ficha ${ficha} </p>`);     
-});
-
-app.get("/clientes/:id",(req,res)=>{
-    const id = req.params.id;
-    res.send(`<h1>Clientes</h1><p>Soy el cliente con ID ${id} </p>`);     
-});
-
-
-app.listen(puerto, ()=>{
-    console.log(`SERVIDOR http://localhost:${puerto}
-        http://127.0.0.1:${puerto}`); 
-});
->>>>>>> 678fdd58f28b17623f09d46b5b1c1d97f4faf901
+app.listen(puerto,()=>{
+    console.log(`SERVIDOR http://localhost:${puerto}`)
+})
