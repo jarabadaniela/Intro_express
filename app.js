@@ -1,94 +1,172 @@
-const express = require("express")
-require("dotenv").config()
-const app = express()
-  //configuracion de body-parse
-app.use(express.json())
-const sistemaArchivos = require("fs")
-const ruta = require("path")
-const { json } = require("stream/consumers")
-const puerto = process.env.PORT || 3000;
+const express = require("express"); 
+const fs = require("fs"); 
+const path = require("path"); 
+const multer = require("multer");
 
-//importar la libreria multer 
-const multer = require ("multer")
+const app = express();
+const puerto = process.env.PORT || 3050;
+const rutaArchivoJson = path.join(__dirname, "aprendices.json");
 
-//configurar el lugar almacenamiento
+// Middlewares esenciales
+app.use(express.json());
+app.use("/misimagenes", express.static(path.join(__dirname, "misimagenes")));
+
+// Asegurar que la carpeta exista antes de usarla
+const carpetaImagenes = path.join(__dirname, "misimagenes");
+if (!fs.existsSync(carpetaImagenes)) {
+    fs.mkdirSync(carpetaImagenes, { recursive: true });
+}
+
 const almacenamiento = multer.diskStorage({
-    destination:(req, file, cb)=>{
-        cb(null, "misImagenes/")
+    destination: (req, file, cb) => {
+        cb(null, carpetaImagenes);
     },
-    filename: (req, file, cb)=>{
-        const extension = ruta
-        cb(null, `${Date.now()}`)
+    filename: (req, file, cb) => {
+        const extension = path.extname(file.originalname);
+        cb(null, `${Date.now()}${extension}`);
     }
-})
+});
 
-//configurar la accion de carga
-const cargar
+const cargar = multer({ storage: almacenamiento });
 
-  //ruta de mi archivo json
-  const rutaArchivojson = ruta.join(__dirname, "aprendices.json")
-
-app.get("/", (req, res) => {
-    res.send("<h1>Api Aprendices</h1>")
-})
-
-//listar aprendices
-
-app.get("/api/aprendices", (req, res)=> {
-    sistemaArchivos.readFile(rutaArchivojson, "utf-8", (error, datos) =>
-    {
+// LISTAR APRENDICES
+app.post("/api/aprendices/listar", (req, res) => {
+    fs.readFile(rutaArchivoJson, "utf-8", (error, datos) => {
         if (error) {
-            return res.status(500).json({ Error: "Error conexion bd."})
+            return res.status(500).json({
+                Error: "Error al leer el archivo JSON"
+            });
         }
-        const listaAprendices = JSON.parse(datos)
-        res.json(listaAprendices)
-    })
-})
+        const listaAprendices = JSON.parse(datos);
+        res.json(listaAprendices);
+    });
+});
 
-//endpoint para adicionar
-app.post("/api/aprendices", (req, res) => {
-    //capturar los datos enviados
-    const datosAprendiz = req.body
-    sistemaArchivos.readFile(rutaArchivojson, "utf-8", (error, datos) =>
-    {
+// CREAR APRENDICES (Usa POST a http://localhost:3050/api/aprendices/crear)
+app.post("/api/aprendices/crear", cargar.single("imagen"), (req, res) => {
+    const datosaprendiz = req.body;
+    
+    // Guardamos la ruta con el nombre correcto de la carpeta
+    datosaprendiz.imagen = req.file ? `misimagenes/${req.file.filename}` : "Sin archivo";
+
+    fs.readFile(rutaArchivoJson, "utf-8", (error, datos) => {
         if (error) {
-            return res.status(500).json({ Error: "Error conexion bd."})
+            return res.status(500).json({
+                Error: "No se puede leer el archivo JSON"
+            });
         }
-        const listaAprendices = JSON.parse(datos)
-        //agregar a la lista javascrpit    
-        listaAprendices.push(datosAprendiz)
-        //escritura de archivo
-        sistemaArchivos.writeFile(rutaArchivojson, JSON.stringify(listaAprendices, null, 2), (error) => {
-            if (error) {
-                return res.json({ Error: "No se puede registrar." })
+
+        const listaAprendices = JSON.parse(datos);
+        listaAprendices.push(datosaprendiz);
+
+        fs.writeFile(
+            rutaArchivoJson,
+            JSON.stringify(listaAprendices, null, 2),
+            (error) => {
+                if (error) {
+                    return res.status(500).json({
+                        Error: "No se puede registrar el aprendiz"
+                    });
+                }
+
+                res.status(201).json(datosaprendiz);
             }
-            res.status(201).json(datosAprendiz)
-        })
-        res.json(datosAprendiz)
-    })
-})
+        );
+    });
+});
 
-//endpoint para editar
-app.put("api/aprendices/:di", (req, res) =>{
-    const diAprendiz = req.params
-    const datosAprendiz= req.body
-    sistemaArchivos.readFile(rutaArchivojson, "utf-8", (error, datos) => {
+// ACTUALIZAR APRENDICES
+app.put("/api/aprendices/actualizar", cargar.single("imagen"), (req, res) => {
+    const datosaprendiz = req.body;
+
+    fs.readFile(rutaArchivoJson, "utf-8", (error, datos) => {
         if (error) {
-            return res.status(500).json({ Error: "Error de conexion bd."})
+            return res.status(500).json({
+                Error: "No se puede leer el archivo JSON"
+            });
         }
-        const listaAprendices = JSON.parse(datos)
-          //Actualizar aprendiz
-        listaAprendices = listaAprendices.map(aprendiz =>{
-            return aprendiz.di === diAprendiz ? {...aprendiz, ...datosAprendiz} :
-            aprendiz
-        })
-    })
-})
 
+        const listaAprendices = JSON.parse(datos);
+        const indice = listaAprendices.findIndex(
+            aprendiz => String(aprendiz.id) === String(datosaprendiz.id)
+        );
 
+        if (indice === -1) {
+            return res.status(404).json({
+                Error: "Aprendiz no encontrado"
+            });
+        }
 
+        if (req.file) {
+            datosaprendiz.imagen = `misimagenes/${req.file.filename}`;
+        } else {
+            datosaprendiz.imagen = listaAprendices[indice].imagen;
+        }
 
+        listaAprendices[indice] = datosaprendiz;
+
+        fs.writeFile(
+            rutaArchivoJson,
+            JSON.stringify(listaAprendices, null, 2),
+            (error) => {
+                if (error) {
+                    return res.status(500).json({
+                        Error: "No se puede actualizar el aprendiz"
+                    });
+                }
+
+                res.status(200).json({
+                    mensaje: "Aprendiz actualizado correctamente",
+                    aprendiz: datosaprendiz
+                });
+            }
+        );
+    });
+});
+
+// ELIMINAR APRENDICES
+app.delete("/api/aprendices/eliminar", (req, res) => {
+    const id = req.body.id;
+
+    fs.readFile(rutaArchivoJson, "utf-8", (error, datos) => {
+        if (error) {
+            return res.status(500).json({
+                Error: "No se puede leer el archivo JSON"
+            });
+        }
+
+        const listaAprendices = JSON.parse(datos);
+        const indice = listaAprendices.findIndex(
+            aprendiz => String(aprendiz.id) === String(id)
+        );
+
+        if (indice === -1) {
+            return res.status(404).json({
+                Error: "Aprendiz no encontrado"
+            });
+        }
+
+        const aprendizEliminado = listaAprendices.splice(indice, 1)[0];
+
+        fs.writeFile(
+            rutaArchivoJson,
+            JSON.stringify(listaAprendices, null, 2),
+            (error) => {
+                if (error) {
+                    return res.status(500).json({
+                        Error: "No se puede eliminar el aprendiz"
+                    });
+                }
+
+                res.status(200).json({
+                    mensaje: `Aprendiz ${aprendizEliminado.nombre} eliminado correctamente`,
+                    aprendiz: aprendizEliminado
+                });
+            }
+        );
+    });
+});
 
 app.listen(puerto, () => {
-    console.log(`SERVIDOR http://localhost:${puerto}`)
-})
+    console.log(`SERVIDOR http://localhost:${puerto}`);
+});

@@ -2,26 +2,17 @@
   {
     "di": 12,
     "nombre": "ana",
-    "correo": "ana@gmail.com",
-    "imagen": "url"
+    "correo": "ana@gmail.com"
   },
   {
     "di": 2,
     "nombre": "sofi",
-    "correo": "sofi@gmail.com",
-    "imagen": "url"
+    "correo": "sofi@gmail.com"
   },
   {
-    "di": 12,
+    "di": "  12",
     "nombre": "ana",
     "correo": "ana@gmail.com",
-    "imagen": "url"
-  },
-  {
-    "di": 12,
-    "nombre": "ana",
-    "correo": "ana@gmail.com",
-    "imagen": "url"
+    "imagen": "misimagenes/1788268741477.avif"
   }
-
 ]
