@@ -11,7 +11,7 @@ const manejoErrores = (err, req, res, next)=>{
         Estado: 'error',
         mensaje,
         //mas detalles cuando somos desarrolladores
-        ...(process.env.NODE_ENV === 'development' && {stack: err.stack})
+        ...(process.env.NODE_ENV === 'production' && {stack: err.stack})
     })
 
 }
