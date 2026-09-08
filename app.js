@@ -1,172 +1,202 @@
-const express = require("express"); 
-const fs = require("fs"); 
-const path = require("path"); 
+require("dotenv").config();
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const multer = require("multer");
 
 const app = express();
-const puerto = process.env.PORT || 3050;
-const rutaArchivoJson = path.join(__dirname, "aprendices.json");
+const miPuerto = process.env.MIPUERTO || 3333;
 
-// Middlewares esenciales
+// Middleware para formatear JSON y servir estáticos
 app.use(express.json());
-app.use("/misimagenes", express.static(path.join(__dirname, "misimagenes")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Asegurar que la carpeta exista antes de usarla
-const carpetaImagenes = path.join(__dirname, "misimagenes");
-if (!fs.existsSync(carpetaImagenes)) {
-    fs.mkdirSync(carpetaImagenes, { recursive: true });
-}
-
-const almacenamiento = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, carpetaImagenes);
-    },
-    filename: (req, file, cb) => {
-        const extension = path.extname(file.originalname);
-        cb(null, `${Date.now()}${extension}`);
+// Configuración de Multer para imágenes de productos
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, "uploads");
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
     }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `prod-${uniqueSuffix}${ext}`);
+  }
+});
+const upload = multer({ storage });
+
+// Rutas de archivos JSON
+const pathProductos = path.join(__dirname, "datosProductos.json");
+const pathAprendices = path.join(__dirname, "datosAprendices.json");
+
+// Funciones auxiliares para lecturas/escrituras
+const leerJSON = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf-8"));
+const guardarJSON = (filePath, data) => fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+
+// Endpoint Raíz
+app.get("/", (req, res) => {
+  res.send("<h1>API REST - Productos & Aprendices SENA</h1>");
 });
 
-const cargar = multer({ storage: almacenamiento });
+/* ==========================================================================
+   CRUD: APRENDICES (/api/aprendices)
+   ========================================================================== */
 
-// LISTAR APRENDICES
-app.post("/api/aprendices/listar", (req, res) => {
-    fs.readFile(rutaArchivoJson, "utf-8", (error, datos) => {
-        if (error) {
-            return res.status(500).json({
-                Error: "Error al leer el archivo JSON"
-            });
-        }
-        const listaAprendices = JSON.parse(datos);
-        res.json(listaAprendices);
-    });
+// 1. GET: Listar todos los aprendices
+app.get("/api/aprendices", (req, res) => {
+  const aprendices = leerJSON(pathAprendices);
+  res.json(aprendices);
 });
 
-// CREAR APRENDICES (Usa POST a http://localhost:3050/api/aprendices/crear)
-app.post("/api/aprendices/crear", cargar.single("imagen"), (req, res) => {
-    const datosaprendiz = req.body;
-    
-    // Guardamos la ruta con el nombre correcto de la carpeta
-    datosaprendiz.imagen = req.file ? `misimagenes/${req.file.filename}` : "Sin archivo";
-
-    fs.readFile(rutaArchivoJson, "utf-8", (error, datos) => {
-        if (error) {
-            return res.status(500).json({
-                Error: "No se puede leer el archivo JSON"
-            });
-        }
-
-        const listaAprendices = JSON.parse(datos);
-        listaAprendices.push(datosaprendiz);
-
-        fs.writeFile(
-            rutaArchivoJson,
-            JSON.stringify(listaAprendices, null, 2),
-            (error) => {
-                if (error) {
-                    return res.status(500).json({
-                        Error: "No se puede registrar el aprendiz"
-                    });
-                }
-
-                res.status(201).json(datosaprendiz);
-            }
-        );
-    });
+// 2. GET: Obtener un aprendiz por ID
+app.get("/api/aprendices/:id", (req, res) => {
+  const aprendices = leerJSON(pathAprendices);
+  const aprendiz = aprendices.find((a) => a.id === parseInt(req.params.id));
+  if (!aprendiz) return res.status(404).json({ mensaje: "Aprendiz no encontrado" });
+  res.json(aprendiz);
 });
 
-// ACTUALIZAR APRENDICES
-app.put("/api/aprendices/actualizar", cargar.single("imagen"), (req, res) => {
-    const datosaprendiz = req.body;
+// 3. POST: Crear un aprendiz
+app.post("/api/aprendices", (req, res) => {
+  const { nombre, documento, ficha, email } = req.body;
 
-    fs.readFile(rutaArchivoJson, "utf-8", (error, datos) => {
-        if (error) {
-            return res.status(500).json({
-                Error: "No se puede leer el archivo JSON"
-            });
-        }
+  if (!nombre || !documento || !ficha || !email) {
+    return res.status(400).json({ mensaje: "Todos los campos (nombre, documento, ficha, email) son obligatorios" });
+  }
 
-        const listaAprendices = JSON.parse(datos);
-        const indice = listaAprendices.findIndex(
-            aprendiz => String(aprendiz.id) === String(datosaprendiz.id)
-        );
+  const aprendices = leerJSON(pathAprendices);
+  const nuevoAprendiz = {
+    id: aprendices.length ? aprendices[aprendices.length - 1].id + 1 : 1,
+    nombre,
+    documento,
+    ficha,
+    email
+  };
 
-        if (indice === -1) {
-            return res.status(404).json({
-                Error: "Aprendiz no encontrado"
-            });
-        }
-
-        if (req.file) {
-            datosaprendiz.imagen = `misimagenes/${req.file.filename}`;
-        } else {
-            datosaprendiz.imagen = listaAprendices[indice].imagen;
-        }
-
-        listaAprendices[indice] = datosaprendiz;
-
-        fs.writeFile(
-            rutaArchivoJson,
-            JSON.stringify(listaAprendices, null, 2),
-            (error) => {
-                if (error) {
-                    return res.status(500).json({
-                        Error: "No se puede actualizar el aprendiz"
-                    });
-                }
-
-                res.status(200).json({
-                    mensaje: "Aprendiz actualizado correctamente",
-                    aprendiz: datosaprendiz
-                });
-            }
-        );
-    });
+  aprendices.push(nuevoAprendiz);
+  guardarJSON(pathAprendices, aprendices);
+  res.status(201).json(nuevoAprendiz);
 });
 
-// ELIMINAR APRENDICES
-app.delete("/api/aprendices/eliminar", (req, res) => {
-    const id = req.body.id;
+// 4. PUT: Actualizar un aprendiz por ID
+app.put("/api/aprendices/:id", (req, res) => {
+  const { nombre, documento, ficha, email } = req.body;
+  const aprendices = leerJSON(pathAprendices);
+  const index = aprendices.findIndex((a) => a.id === parseInt(req.params.id));
 
-    fs.readFile(rutaArchivoJson, "utf-8", (error, datos) => {
-        if (error) {
-            return res.status(500).json({
-                Error: "No se puede leer el archivo JSON"
-            });
-        }
+  if (index === -1) return res.status(404).json({ mensaje: "Aprendiz no encontrado" });
+  if (!nombre || !documento || !ficha || !email) {
+    return res.status(400).json({ mensaje: "Todos los campos son obligatorios" });
+  }
 
-        const listaAprendices = JSON.parse(datos);
-        const indice = listaAprendices.findIndex(
-            aprendiz => String(aprendiz.id) === String(id)
-        );
+  aprendices[index] = {
+    ...aprendices[index],
+    nombre,
+    documento,
+    ficha,
+    email
+  };
 
-        if (indice === -1) {
-            return res.status(404).json({
-                Error: "Aprendiz no encontrado"
-            });
-        }
-
-        const aprendizEliminado = listaAprendices.splice(indice, 1)[0];
-
-        fs.writeFile(
-            rutaArchivoJson,
-            JSON.stringify(listaAprendices, null, 2),
-            (error) => {
-                if (error) {
-                    return res.status(500).json({
-                        Error: "No se puede eliminar el aprendiz"
-                    });
-                }
-
-                res.status(200).json({
-                    mensaje: `Aprendiz ${aprendizEliminado.nombre} eliminado correctamente`,
-                    aprendiz: aprendizEliminado
-                });
-            }
-        );
-    });
+  guardarJSON(pathAprendices, aprendices);
+  res.json(aprendices[index]);
 });
 
-app.listen(puerto, () => {
-    console.log(`SERVIDOR http://localhost:${puerto}`);
+
+
+// 5. DELETE: Eliminar un aprendiz por ID
+app.delete("/api/aprendices/:id", (req, res) => {
+  let aprendices = leerJSON(pathAprendices);
+  const existe = aprendices.some((a) => a.id === parseInt(req.params.id));
+
+  if (!existe) return res.status(404).json({ mensaje: "Aprendiz no encontrado" });
+
+  aprendices = aprendices.filter((a) => a.id !== parseInt(req.params.id));
+  guardarJSON(pathAprendices, aprendices);
+  res.json({ mensaje: "Aprendiz eliminado correctamente" });
+});
+
+/* ==========================================================================
+   CRUD: PRODUCTOS (/api/productos)
+   ========================================================================== */
+
+app.get("/api/productos", (req, res) => {
+  res.json(leerJSON(pathProductos));
+});
+
+app.get("/api/productos/:id", (req, res) => {
+  const productos = leerJSON(pathProductos);
+  const producto = productos.find((p) => p.id === parseInt(req.params.id));
+  if (!producto) return res.status(404).json({ mensaje: "Producto no encontrado" });
+  res.json(producto);
+});
+
+app.post("/api/productos", upload.single("imagen"), (req, res) => {
+  const { nombre, precio, stock, categoria } = req.body;
+  if (!nombre || precio === undefined || stock === undefined || !categoria) {
+    return res.status(400).json({ mensaje: "Todos los campos obligatorios deben diligenciarse" });
+  }
+
+  const productos = leerJSON(pathProductos);
+  const nuevaRutaImagen = req.file ? `/uploads/${req.file.filename}` : null;
+
+  const nuevoProducto = {
+    id: productos.length ? productos[productos.length - 1].id + 1 : 1,
+    nombre,
+    precio: Number(precio),
+    stock: Number(stock),
+    categoria,
+    imagen: nuevaRutaImagen
+  };
+
+  productos.push(nuevoProducto);
+  guardarJSON(pathProductos, productos);
+  res.status(201).json(nuevoProducto);
+});
+
+app.put("/api/productos/:id", upload.single("imagen"), (req, res) => {
+  const { nombre, precio, stock, categoria } = req.body;
+  const productos = leerJSON(pathProductos);
+  const index = productos.findIndex((p) => p.id === parseInt(req.params.id));
+
+  if (index === -1) return res.status(404).json({ mensaje: "Producto no encontrado" });
+  if (!nombre || precio === undefined || stock === undefined || !categoria) {
+    return res.status(400).json({ mensaje: "Todos los campos obligatorios deben diligenciarse" });
+  }
+
+  const imagenExistente = productos[index].imagen;
+  const nuevaRutaImagen = req.file ? `/uploads/${req.file.filename}` : imagenExistente;
+
+  productos[index] = {
+    ...productos[index],
+    nombre,
+    precio: Number(precio),
+    stock: Number(stock),
+    categoria,
+    imagen: nuevaRutaImagen
+  };
+
+  guardarJSON(pathProductos, productos);
+  res.json(productos[index]);
+});
+
+app.delete("/api/productos/:id", (req, res) => {
+  let productos = leerJSON(pathProductos);
+  const existe = productos.some((p) => p.id === parseInt(req.params.id));
+  if (!existe) return res.status(404).json({ mensaje: "Producto no encontrado" });
+
+  productos = productos.filter((p) => p.id !== parseInt(req.params.id));
+  guardarJSON(pathProductos, productos);
+  res.json({ mensaje: "Producto eliminado correctamente" });
+});
+
+//endpoint para provocar un error
+app.get("/Error", (req, res, next)=>{
+    next(new Error("Error provocado, intencional"))
+})
+
+app.listen(miPuerto, () => {
+  console.log(`SERVIDOR: http://localhost:${miPuerto}`);
 });
