@@ -193,8 +193,12 @@ app.delete("/api/productos/:id", (req, res) => {
 });
 
 //endpoint para provocar un error
-app.get("/Error", (req, res, next)=>{
-    next(new Error("Error provocado, intencional"))
+//app.get("/Error", (req, res, next)=>{
+  //  next(new Error("Error provocado, intencional"))
+//})
+
+app.get ("/rutaProtegida", (req, res, next)=>{
+    res.status("")
 })
 
 app.listen(miPuerto, () => {
